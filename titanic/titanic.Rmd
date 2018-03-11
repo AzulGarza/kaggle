@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r packgs}
-pacman::p_load(tidyverse, keras, recipes)
+pacman::p_load(tidyverse, keras, recipes, rsample)
 ```
 
 We read the data.
@@ -26,29 +26,102 @@ train %>%
   glimpse
 ```
 
-```{r}
-train #%>% 
-  map(train, ~sum(is.na(.))
-  
+¿Qué variables poseen `NA`?
+
+```{r na}
+
+na_number <- function(data){
+  data %>%
+    summarise_all(funs(sum(is.na(.)))) %>% 
+    glimpse
+}
+
+train %>% 
+  na_number
 ```
 
 
-```{r recipe}
 
-train %>% glimpse()
+```{r recipe}
 rec_obj <- recipe(Survived ~ ., data = train) %>% 
-#  step_string2factor(Sex) %>% 
-  step_num2factor(Pclass) %>% 
-  step_dummy(Pclass, Sex, Embarked) %>% 
-  step_rm(!is_numeric) %>% 
+  step_num2factor(Pclass) %>%
+  step_meanimpute(Age) %>%
+  step_dummy(Pclass, Sex) %>% 
+  step_rm(all_nominal(), all_outcomes()) %>% 
   step_center(all_predictors()) %>% 
+  step_scale(all_predictors()) %>% 
   prep(dat = train)
 ```
 
 
 ```{r bake}
-train_b <- bake(rec_obj, newdata = train)
-
+x_train <- bake(rec_obj, newdata = train)
+x_test <- bake(rec_obj, newda = test)
 ```
 
+```{r response}
+y_train <- pull(train, Survived)
+```
+
+```{r model_keras}
+model_keras <- keras_model_sequential() %>% 
+  layer_dense(
+    units = 16,
+    kernel_initializer = "uniform",
+    activation = "relu",
+    input_shape = ncol(x_train)
+  ) %>% 
+  layer_dropout(rate = 0.1) %>% 
+  layer_dense(
+    units = 16,
+    kernel_initializer = "uniform",
+    activation = "relu"
+  ) %>% 
+  layer_dropout(rate = 0.1) %>% 
+  layer_dense(
+    units = 1,
+    kernel_initializer = "uniform",
+    activation = "sigmoid"
+  ) %>% 
+  compile(
+    optimizer = 'adam',
+    loss = 'binary_crossentropy',
+    metrics = 'accuracy'
+  )
+
+model_keras
+```
+
+```{r fit_keras}
+fit_keras <- fit(
+  object = model_keras,
+  x = as.matrix(x_train),
+  y = y_train,
+  batch_size = 50,
+  epochs = 35,
+  validation_split = 0.3
+)
+
+fit_keras
+```
+
+
+```{r plot_model}
+plot(fit_keras)
+```
+
+
+```{r predictions}
+pred <- predict_classes(
+  object = model_keras,
+  x = as.matrix(x_test)
+  ) %>% 
+  as.vector()
+
+pred_id <- test %>% 
+  select(PassengerId) %>% 
+  mutate(Survived = pred)
+
+write_csv(pred_id, here::here("data", "predictions.csv"))
+```
 
