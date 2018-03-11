@@ -1,0 +1,54 @@
+---
+title: "Kaggle competition: Titanic"
+author: "fede"
+date: "10/3/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packgs}
+pacman::p_load(tidyverse, keras, recipes)
+```
+
+We read the data.
+
+```{r data}
+train <- read_csv(here::here("data", "train.csv"))
+test <- read_csv(here::here("data", "test.csv"))
+```
+
+
+```{r vars}
+train %>% 
+  glimpse
+```
+
+```{r}
+train #%>% 
+  map(train, ~sum(is.na(.))
+  
+```
+
+
+```{r recipe}
+
+train %>% glimpse()
+rec_obj <- recipe(Survived ~ ., data = train) %>% 
+#  step_string2factor(Sex) %>% 
+  step_num2factor(Pclass) %>% 
+  step_dummy(Pclass, Sex, Embarked) %>% 
+  step_rm(!is_numeric) %>% 
+  step_center(all_predictors()) %>% 
+  prep(dat = train)
+```
+
+
+```{r bake}
+train_b <- bake(rec_obj, newdata = train)
+
+```
+
+
